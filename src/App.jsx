@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Calendar, User, Bell, CheckSquare, Plus, Trash } from 'lucide-react'; // Adicionando ícone de lixeira
+import { useState, useEffect } from 'react';
+import { Calendar, User, Bell, CheckSquare, Plus, Trash } from 'lucide-react';
 import './App.css';
 
 // ---------------- Sidebar ----------------
@@ -7,11 +7,11 @@ function Sidebar({ items = [], activeItem, onClick }) {
   return (
     <aside className="dashboard-sidebar">
       <div className="sidebar-logo">
-        <img 
-          src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/CondoNet_Logo.svg/1200px-CondoNet_Logo.svg.png" 
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/906/906334.png"
           alt="Condo Net"
         />
-        <span>Condo Net</span>
+        <span>Tarefas</span>
       </div>
 
       <nav>
@@ -41,10 +41,17 @@ function Dashboard() {
     { label: 'Aniversários', icon: User },
   ];
 
-  const [tasks, setTasks] = useState([]);
-  const [medications, setMedications] = useState([]);
-  const [agenda, setAgenda] = useState([]);
-  const [birthdays, setBirthdays] = useState([]);
+  // Inicialização com LocalStorage para não perder dados ao atualizar
+  const [tasks, setTasks] = useState(() => JSON.parse(localStorage.getItem('tasks')) || []);
+  const [medications, setMedications] = useState(() => JSON.parse(localStorage.getItem('meds')) || []);
+  const [agenda, setAgenda] = useState(() => JSON.parse(localStorage.getItem('agenda')) || []);
+  const [birthdays, setBirthdays] = useState(() => JSON.parse(localStorage.getItem('birthdays')) || []);
+
+  // Efeitos para salvar automaticamente
+  useEffect(() => localStorage.setItem('tasks', JSON.stringify(tasks)), [tasks]);
+  useEffect(() => localStorage.setItem('meds', JSON.stringify(medications)), [medications]);
+  useEffect(() => localStorage.setItem('agenda', JSON.stringify(agenda)), [agenda]);
+  useEffect(() => localStorage.setItem('birthdays', JSON.stringify(birthdays)), [birthdays]);
 
   // Estados de input
   const [newTask, setNewTask] = useState('');
@@ -52,10 +59,12 @@ function Dashboard() {
   const [newAgenda, setNewAgenda] = useState({ event: '', time: '' });
   const [newBirthday, setNewBirthday] = useState({ name: '', date: '' });
 
-  const handleAdd = () => {
+  const handleAdd = (e) => {
+    if (e) e.preventDefault(); // Previne reload se estiver num <form>
+
     switch (activeTab) {
       case 'Minhas Tarefas':
-        if (newTask.trim() === '') return;
+        if (!newTask.trim()) return;
         setTasks([...tasks, { title: newTask, done: false }]);
         setNewTask('');
         break;
@@ -74,32 +83,15 @@ function Dashboard() {
         setBirthdays([...birthdays, { ...newBirthday }]);
         setNewBirthday({ name: '', date: '' });
         break;
-      default:
-        break;
+      default: break;
     }
   };
 
-  const handleDelete = (index) => {
-    switch (activeTab) {
-      case 'Minhas Tarefas':
-        const updatedTasks = tasks.filter((_, i) => i !== index);
-        setTasks(updatedTasks);
-        break;
-      case 'Medicamentos':
-        const updatedMedications = medications.filter((_, i) => i !== index);
-        setMedications(updatedMedications);
-        break;
-      case 'Agenda':
-        const updatedAgenda = agenda.filter((_, i) => i !== index);
-        setAgenda(updatedAgenda);
-        break;
-      case 'Aniversários':
-        const updatedBirthdays = birthdays.filter((_, i) => i !== index);
-        setBirthdays(updatedBirthdays);
-        break;
-      default:
-        break;
-    }
+  const handleDelete = (index, category) => {
+    if (category === 'tasks') setTasks(tasks.filter((_, i) => i !== index));
+    if (category === 'meds') setMedications(medications.filter((_, i) => i !== index));
+    if (category === 'agenda') setAgenda(agenda.filter((_, i) => i !== index));
+    if (category === 'birthdays') setBirthdays(birthdays.filter((_, i) => i !== index));
   };
 
   const toggleTaskDone = (index) => {
@@ -116,21 +108,18 @@ function Dashboard() {
             <div className="input-group">
               <input
                 type="text"
-                placeholder="Nova tarefa"
+                placeholder="Nova tarefa... (Enter para salvar)"
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
               />
               <button onClick={handleAdd}><Plus size={16} /></button>
             </div>
             <ul className="dashboard-list">
               {tasks.map((t, i) => (
-                <li
-                  key={i}
-                  className={t.done ? 'done' : ''}
-                  onClick={() => toggleTaskDone(i)}
-                >
-                  {t.title}
-                  <button className="delete-btn" onClick={() => handleDelete(i)}>
+                <li key={i} className={t.done ? 'done' : ''} onClick={() => toggleTaskDone(i)}>
+                  <span>{t.title}</span>
+                  <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDelete(i, 'tasks'); }}>
                     <Trash size={16} />
                   </button>
                 </li>
@@ -144,7 +133,7 @@ function Dashboard() {
             <div className="input-group">
               <input
                 type="text"
-                placeholder="Nome do medicamento"
+                placeholder="Remédio"
                 value={newMedication.name}
                 onChange={(e) => setNewMedication({ ...newMedication, name: e.target.value })}
               />
@@ -157,9 +146,9 @@ function Dashboard() {
             </div>
             <ul className="dashboard-list">
               {medications.map((m, i) => (
-                <li key={i}>
+                <li key={i} className="no-click">
                   {m.name} - <span className="time">{m.time}</span>
-                  <button className="delete-btn" onClick={() => handleDelete(i)}>
+                  <button className="delete-btn" onClick={() => handleDelete(i, 'meds')}>
                     <Trash size={16} />
                   </button>
                 </li>
@@ -186,9 +175,9 @@ function Dashboard() {
             </div>
             <ul className="dashboard-list">
               {agenda.map((a, i) => (
-                <li key={i}>
+                <li key={i} className="no-click">
                   {a.event} - <span className="time">{a.time}</span>
-                  <button className="delete-btn" onClick={() => handleDelete(i)}>
+                  <button className="delete-btn" onClick={() => handleDelete(i, 'agenda')}>
                     <Trash size={16} />
                   </button>
                 </li>
@@ -214,22 +203,18 @@ function Dashboard() {
               <button onClick={handleAdd}><Plus size={16} /></button>
             </div>
             <ul className="dashboard-list">
-              {birthdays.map((b, i) => {
-                const formattedDate = b.date ? new Date(b.date).toLocaleDateString('pt-BR') : '';
-                return (
-                  <li key={i}>
-                    {b.name} - <span className="time">{formattedDate}</span>
-                    <button className="delete-btn" onClick={() => handleDelete(i)}>
-                      <Trash size={16} />
-                    </button>
-                  </li>
-                );
-              })}
+              {birthdays.map((b, i) => (
+                <li key={i} className="no-click">
+                  {b.name} - <span className="time">{b.date ? new Date(b.date + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</span>
+                  <button className="delete-btn" onClick={() => handleDelete(i, 'birthdays')}>
+                    <Trash size={16} />
+                  </button>
+                </li>
+              ))}
             </ul>
           </>
         );
-      default:
-        return null;
+      default: return null;
     }
   };
 
