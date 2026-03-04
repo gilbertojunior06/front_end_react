@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, User, Bell, CheckSquare, Plus, Trash } from 'lucide-react';
+import { Calendar, User, Bell, CheckSquare, Plus, Trash, Edit } from 'lucide-react';
 import './App.css';
 
 // ---------------- Sidebar ----------------
@@ -59,6 +59,9 @@ function Dashboard() {
   const [newAgenda, setNewAgenda] = useState({ event: '', time: '' });
   const [newBirthday, setNewBirthday] = useState({ name: '', date: '' });
 
+  // Para controle de edição
+  const [editing, setEditing] = useState(null);
+
   const handleAdd = (e) => {
     if (e) e.preventDefault(); // Previne reload se estiver num <form>
 
@@ -94,6 +97,54 @@ function Dashboard() {
     if (category === 'birthdays') setBirthdays(birthdays.filter((_, i) => i !== index));
   };
 
+  const handleEdit = (index, category) => {
+    if (category === 'tasks') {
+      setNewTask(tasks[index].title);
+      setEditing({ index, category });
+    } else if (category === 'meds') {
+      setNewMedication(medications[index]);
+      setEditing({ index, category });
+    } else if (category === 'agenda') {
+      setNewAgenda(agenda[index]);
+      setEditing({ index, category });
+    } else if (category === 'birthdays') {
+      setNewBirthday(birthdays[index]);
+      setEditing({ index, category });
+    }
+  };
+
+  const handleUpdate = (e) => {
+    if (e) e.preventDefault();
+
+    if (editing) {
+      const { index, category } = editing;
+      switch (category) {
+        case 'tasks':
+          if (!newTask.trim()) return;
+          tasks[index].title = newTask;
+          setTasks([...tasks]);
+          break;
+        case 'meds':
+          if (!newMedication.name || !newMedication.time) return;
+          medications[index] = { ...newMedication };
+          setMedications([...medications]);
+          break;
+        case 'agenda':
+          if (!newAgenda.event || !newAgenda.time) return;
+          agenda[index] = { ...newAgenda };
+          setAgenda([...agenda]);
+          break;
+        case 'birthdays':
+          if (!newBirthday.name || !newBirthday.date) return;
+          birthdays[index] = { ...newBirthday };
+          setBirthdays([...birthdays]);
+          break;
+        default: break;
+      }
+      setEditing(null);
+    }
+  };
+
   const toggleTaskDone = (index) => {
     const updated = [...tasks];
     updated[index].done = !updated[index].done;
@@ -111,16 +162,21 @@ function Dashboard() {
                 placeholder="Nova tarefa... (Enter para salvar)"
                 value={newTask}
                 onChange={(e) => setNewTask(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                onKeyDown={(e) => e.key === 'Enter' && (editing ? handleUpdate() : handleAdd())}
               />
-              <button onClick={handleAdd}><Plus size={16} /></button>
+              <button onClick={editing ? handleUpdate : handleAdd}>
+                {editing ? <Edit size={16} /> : <Plus size={16} />}
+              </button>
             </div>
             <ul className="dashboard-list">
               {tasks.map((t, i) => (
                 <li key={i} className={t.done ? 'done' : ''} onClick={() => toggleTaskDone(i)}>
                   <span>{t.title}</span>
-                  <button className="delete-btn" onClick={(e) => { e.stopPropagation(); handleDelete(i, 'tasks'); }}>
+                  <button className="delete-btn" onClick={() => handleDelete(i, 'tasks')}>
                     <Trash size={16} />
+                  </button>
+                  <button className="edit-btn" onClick={() => handleEdit(i, 'tasks')}>
+                    <Edit size={16} />
                   </button>
                 </li>
               ))}
@@ -142,7 +198,9 @@ function Dashboard() {
                 value={newMedication.time}
                 onChange={(e) => setNewMedication({ ...newMedication, time: e.target.value })}
               />
-              <button onClick={handleAdd}><Plus size={16} /></button>
+              <button onClick={editing ? handleUpdate : handleAdd}>
+                {editing ? <Edit size={16} /> : <Plus size={16} />}
+              </button>
             </div>
             <ul className="dashboard-list">
               {medications.map((m, i) => (
@@ -150,6 +208,9 @@ function Dashboard() {
                   {m.name} - <span className="time">{m.time}</span>
                   <button className="delete-btn" onClick={() => handleDelete(i, 'meds')}>
                     <Trash size={16} />
+                  </button>
+                  <button className="edit-btn" onClick={() => handleEdit(i, 'meds')}>
+                    <Edit size={16} />
                   </button>
                 </li>
               ))}
@@ -171,7 +232,9 @@ function Dashboard() {
                 value={newAgenda.time}
                 onChange={(e) => setNewAgenda({ ...newAgenda, time: e.target.value })}
               />
-              <button onClick={handleAdd}><Plus size={16} /></button>
+              <button onClick={editing ? handleUpdate : handleAdd}>
+                {editing ? <Edit size={16} /> : <Plus size={16} />}
+              </button>
             </div>
             <ul className="dashboard-list">
               {agenda.map((a, i) => (
@@ -179,6 +242,9 @@ function Dashboard() {
                   {a.event} - <span className="time">{a.time}</span>
                   <button className="delete-btn" onClick={() => handleDelete(i, 'agenda')}>
                     <Trash size={16} />
+                  </button>
+                  <button className="edit-btn" onClick={() => handleEdit(i, 'agenda')}>
+                    <Edit size={16} />
                   </button>
                 </li>
               ))}
@@ -197,10 +263,13 @@ function Dashboard() {
               />
               <input
                 type="date"
+                name="date"
                 value={newBirthday.date}
                 onChange={(e) => setNewBirthday({ ...newBirthday, date: e.target.value })}
               />
-              <button onClick={handleAdd}><Plus size={16} /></button>
+              <button onClick={editing ? handleUpdate : handleAdd}>
+                {editing ? <Edit size={16} /> : <Plus size={16} />}
+              </button>
             </div>
             <ul className="dashboard-list">
               {birthdays.map((b, i) => (
@@ -208,6 +277,9 @@ function Dashboard() {
                   {b.name} - <span className="time">{b.date ? new Date(b.date + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</span>
                   <button className="delete-btn" onClick={() => handleDelete(i, 'birthdays')}>
                     <Trash size={16} />
+                  </button>
+                  <button className="edit-btn" onClick={() => handleEdit(i, 'birthdays')}>
+                    <Edit size={16} />
                   </button>
                 </li>
               ))}
